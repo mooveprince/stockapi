@@ -34,17 +34,6 @@ def get_yf_data():
     return ticker_dict
 
 
-@app.route('/is')
-def get_incomestatement():
-    if 'symbol' in request.args:
-        symbol = request.args['symbol']
-    else:
-        return "Error: No symbol provided. Please specify symbol."
-
-    incsta_list = requests.get('https://financialmodelingprep.com/api/v3/income-statement/'+symbol+'?apikey=0ee048fea75d0f7205b64b8bb6723608')
-    return incsta_list[0]
-
-
 @app.route('/info', methods=['GET'])
 def get_info():
 
@@ -60,7 +49,9 @@ def get_info():
                           'companyName': get_dividend_info(symbol)[1]['companyName'],
                           'peRatio': get_dividend_info(symbol)[1]['peRatio'],
                           'earningsPerShare': get_dividend_info(symbol)[1]['earningsPerShare'],
-                          'balanceSheetInfo': get_balancesheet(symbol)
+                          'balanceSheetInfo': get_balance_sheet_info(symbol),
+                          'incomeSheetInfo': get_income_sheet_info(symbol),
+                          'cashFlowInfo': get_cash_flow_info(symbol)
                           }
             return value_dict
         else:
@@ -100,8 +91,7 @@ def get_curr_price(symbol):
         return -1
 
 
-@app.route('/bs')
-def get_balancesheet(symbol):
+def get_balance_sheet_info(symbol):
     if symbol_check(symbol):
         balance_sheet_list = requests.get(
             'https://financialmodelingprep.com/api/v3/balance-sheet-statement/' + symbol + '?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
@@ -110,21 +100,66 @@ def get_balancesheet(symbol):
         total_asset_to_liab_ratio = balance_sheet_list[0]['totalAssets'] / balance_sheet_list[0]['totalLiabilities']
 
         sum_total_asset_to_liab_history = 0
-        past_five_year_list = balance_sheet_list[1:6]
-        for bs in past_five_year_list:
+        past_ten_year_list = balance_sheet_list[1:11]
+        for bs in past_ten_year_list:
             sum_total_asset_to_liab_history += bs['totalAssets']/bs['totalLiabilities']
 
-        avg_total_asset_to_liab = sum_total_asset_to_liab_history / 5
+        avg_total_asset_to_liab = sum_total_asset_to_liab_history / 10
         balance_sheet_info = {
             "currentAssetToLiabRatio": "{:.2f}".format(current_asset_to_liab_ratio),
             "totalAssetToLiabRatio": "{:.2f}".format(total_asset_to_liab_ratio),
-            "past5YearAvgAssetToLiabRatio": "{:.2f}".format(avg_total_asset_to_liab)
+            "past10YearAvgAssetToLiabRatio": "{:.2f}".format(avg_total_asset_to_liab)
         }
-        # totalCurrentAssets
-        # totalCurrentLiabilities
-        # totalAssets
-        # totalLiabilities
         return balance_sheet_info
+    else:
+        return -1
+
+
+def get_income_sheet_info(symbol):
+    if symbol_check(symbol):
+        income_sheet_list = requests.get(
+            'https://financialmodelingprep.com/api/v3/income-statement/' + symbol + '?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
+        operating_income_ratio = income_sheet_list[0]['operatingIncomeRatio']
+
+        sum_operating_income_ratio_history = 0
+        past_ten_year_list = income_sheet_list[1:11]
+        for income_statement in past_ten_year_list:
+            sum_operating_income_ratio_history += income_statement['operatingIncomeRatio']
+
+        avg_operating_income_ratio = sum_operating_income_ratio_history / 10
+
+        current_operating_income = income_sheet_list[0]['operatingIncome']
+        past_fifth_year_operating_income = income_sheet_list[4]['operatingIncome']
+        past_tenth_year_operating_income = income_sheet_list[9]['operatingIncome']
+
+        five_year_increase = (current_operating_income - past_fifth_year_operating_income)/past_fifth_year_operating_income
+        ten_year_increase = (current_operating_income - past_tenth_year_operating_income)/past_tenth_year_operating_income
+
+        income_sheet_info = {
+            "currentOperatingIncomeRatio": "{:.2%}".format(operating_income_ratio),
+            "past10YearAvgOperatingIncomeRatio": "{:.2%}".format(avg_operating_income_ratio),
+            "fiveYearIncreaseOperatingIncome": "{:.2%}".format(five_year_increase),
+            "tenYearIncreaseOperatingIncome": "{:.2%}".format(ten_year_increase)
+        }
+        return income_sheet_info
+    else:
+        return -1
+
+
+def get_cash_flow_info(symbol):
+    if symbol_check(symbol):
+        cash_flow_list = requests.get(
+            'https://financialmodelingprep.com/api/v3/cash-flow-statement/' + symbol + '?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
+        operating_cash_flow = cash_flow_list[0]['operatingCashFlow']
+        investment_cash_flow = cash_flow_list[0]['netCashUsedForInvestingActivites']
+        financial_cash_flow = cash_flow_list[0]['netCashUsedProvidedByFinancingActivities']
+
+        cash_flow_info = {
+            "operatingCashFlow": "${:,.2f}".format(operating_cash_flow),
+            "investmentCashFlow": "${:,.2f}".format(investment_cash_flow),
+            "financialCashFlow": "${:,.2f}".format(financial_cash_flow)
+        }
+        return cash_flow_info
     else:
         return -1
 
