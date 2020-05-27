@@ -1,9 +1,6 @@
 from flask import Flask, request, jsonify
 import yfinance as yf
 import requests
-from urllib.request import Request, urlopen
-from bs4 import BeautifulSoup as soup
-import json
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
@@ -66,15 +63,22 @@ def get_dividend_info(symbol):
         print(type(ticker.actions))
         ticker_dict = ticker.info
         dividend_info = {
-            'dividend': ticker_dict['dividendRate'],
-            'divYield': "{:.2%}".format(ticker_dict['dividendYield']),
-            'fiveYearAvgDivYield': str(ticker_dict['fiveYearAvgDividendYield']) + '%',
-            'payoutRatio': "{:.2%}".format(ticker_dict['payoutRatio'])
+            'dividend': 'NA' if('dividendRate' not in ticker_dict or ticker_dict['dividendRate'] is None)
+                else ticker_dict['dividendRate'],
+            'divYield': 'NA' if('dividendYield'not in ticker_dict or ticker_dict['dividendYield'] is None)
+                else "{:.2%}".format(ticker_dict['dividendYield']),
+            'fiveYearAvgDivYield': 'NA' if('fiveYearAvgDividendYield' not in ticker_dict or ticker_dict['fiveYearAvgDividendYield'] is None)
+                else str(ticker_dict['fiveYearAvgDividendYield']) + '%',
+            'payoutRatio': 'NA' if('payoutRatio' not in ticker_dict or ticker_dict['payoutRatio'] is None)
+                else "{:.2%}".format(ticker_dict['payoutRatio'])
         }
         general_info = {
-            'companyName': ticker_dict['shortName'],
-            'peRatio': "{:.2f}".format(ticker_dict['trailingPE']),
-            'earningsPerShare': "{:.2f}".format(ticker_dict['trailingEps'])
+            'companyName': 'NA' if('shortName' not in ticker_dict or ticker_dict['shortName'] is None)
+                else ticker_dict['shortName'],
+            'peRatio': 'NA' if('trailingPE' not in ticker_dict or ticker_dict['trailingPE'] is None)
+                else "{:.2f}".format(ticker_dict['trailingPE']),
+            'earningsPerShare': 'NA' if('trailingEps' not in ticker_dict or ticker_dict['trailingEps'] is None)
+                else "{:.2f}".format(ticker_dict['trailingEps'])
         }
 
         return [dividend_info, general_info]
@@ -96,21 +100,22 @@ def get_balance_sheet_info(symbol):
         balance_sheet_list = requests.get(
             'https://financialmodelingprep.com/api/v3/balance-sheet-statement/' + symbol + '?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
 
-        current_asset_to_liab_ratio = balance_sheet_list[0]['totalCurrentAssets'] / balance_sheet_list[0]['totalCurrentLiabilities']
-        total_asset_to_liab_ratio = balance_sheet_list[0]['totalAssets'] / balance_sheet_list[0]['totalLiabilities']
+        if len(balance_sheet_list) != 0:
+            current_asset_to_liab_ratio = balance_sheet_list[0]['totalCurrentAssets'] / balance_sheet_list[0]['totalCurrentLiabilities']
+            total_asset_to_liab_ratio = balance_sheet_list[0]['totalAssets'] / balance_sheet_list[0]['totalLiabilities']
 
-        sum_total_asset_to_liab_history = 0
-        past_ten_year_list = balance_sheet_list[1:11]
-        for bs in past_ten_year_list:
-            sum_total_asset_to_liab_history += bs['totalAssets']/bs['totalLiabilities']
+            sum_total_asset_to_liab_history = 0
+            past_ten_year_list = balance_sheet_list[1:11]
+            for bs in past_ten_year_list:
+                sum_total_asset_to_liab_history += bs['totalAssets']/bs['totalLiabilities']
 
-        avg_total_asset_to_liab = sum_total_asset_to_liab_history / 10
-        balance_sheet_info = {
-            "currentAssetToLiabRatio": "{:.2f}".format(current_asset_to_liab_ratio),
-            "totalAssetToLiabRatio": "{:.2f}".format(total_asset_to_liab_ratio),
-            "past10YearAvgAssetToLiabRatio": "{:.2f}".format(avg_total_asset_to_liab)
-        }
-        return balance_sheet_info
+            avg_total_asset_to_liab = sum_total_asset_to_liab_history / 10
+            balance_sheet_info = {
+                "currentAssetToLiabRatio": "{:.2f}".format(current_asset_to_liab_ratio),
+                "totalAssetToLiabRatio": "{:.2f}".format(total_asset_to_liab_ratio),
+                "past10YearAvgAssetToLiabRatio": "{:.2f}".format(avg_total_asset_to_liab)
+            }
+            return balance_sheet_info
     else:
         return -1
 
@@ -119,29 +124,34 @@ def get_income_sheet_info(symbol):
     if symbol_check(symbol):
         income_sheet_list = requests.get(
             'https://financialmodelingprep.com/api/v3/income-statement/' + symbol + '?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
-        operating_income_ratio = income_sheet_list[0]['operatingIncomeRatio']
 
-        sum_operating_income_ratio_history = 0
-        past_ten_year_list = income_sheet_list[1:11]
-        for income_statement in past_ten_year_list:
-            sum_operating_income_ratio_history += income_statement['operatingIncomeRatio']
+        if len(income_sheet_list) != 0:
+            operating_income_ratio = income_sheet_list[0]['operatingIncomeRatio']
 
-        avg_operating_income_ratio = sum_operating_income_ratio_history / 10
+            sum_operating_income_ratio_history = 0
+            past_ten_year_list = income_sheet_list[1:11]
+            for income_statement in past_ten_year_list:
+                sum_operating_income_ratio_history += income_statement['operatingIncomeRatio']
 
-        current_operating_income = income_sheet_list[0]['operatingIncome']
-        past_fifth_year_operating_income = income_sheet_list[4]['operatingIncome']
-        past_tenth_year_operating_income = income_sheet_list[9]['operatingIncome']
+            avg_operating_income_ratio = sum_operating_income_ratio_history / 10
 
-        five_year_increase = (current_operating_income - past_fifth_year_operating_income)/past_fifth_year_operating_income
-        ten_year_increase = (current_operating_income - past_tenth_year_operating_income)/past_tenth_year_operating_income
+            current_operating_income = income_sheet_list[0]['operatingIncome']
+            prev_operating_income = income_sheet_list[1]['operatingIncome']
+            past_fifth_year_operating_income = income_sheet_list[4]['operatingIncome']
+            past_tenth_year_operating_income = income_sheet_list[9]['operatingIncome']
 
-        income_sheet_info = {
-            "currentOperatingIncomeRatio": "{:.2%}".format(operating_income_ratio),
-            "past10YearAvgOperatingIncomeRatio": "{:.2%}".format(avg_operating_income_ratio),
-            "fiveYearIncreaseOperatingIncome": "{:.2%}".format(five_year_increase),
-            "tenYearIncreaseOperatingIncome": "{:.2%}".format(ten_year_increase)
-        }
-        return income_sheet_info
+            one_y_growth = (current_operating_income - prev_operating_income)/prev_operating_income
+            five_y_growth = (current_operating_income - past_fifth_year_operating_income)/past_fifth_year_operating_income
+            ten_y_growth = (current_operating_income - past_tenth_year_operating_income)/past_tenth_year_operating_income
+
+            income_sheet_info = {
+                "operatingIncomeRatio": "{:.2%}".format(operating_income_ratio),
+                "past10YAvgOperatingIncomeRatio": "{:.2%}".format(avg_operating_income_ratio),
+                "operatingIncomeGrowth":"{:.2%}".format(one_y_growth),
+                "fiveYOperatingIncomeGrowth": "{:.2%}".format(five_y_growth),
+                "tenYOperatingIncomeGrowth": "{:.2%}".format(ten_y_growth)
+            }
+            return income_sheet_info
     else:
         return -1
 
@@ -150,16 +160,18 @@ def get_cash_flow_info(symbol):
     if symbol_check(symbol):
         cash_flow_list = requests.get(
             'https://financialmodelingprep.com/api/v3/cash-flow-statement/' + symbol + '?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
-        operating_cash_flow = cash_flow_list[0]['operatingCashFlow']
-        investment_cash_flow = cash_flow_list[0]['netCashUsedForInvestingActivites']
-        financial_cash_flow = cash_flow_list[0]['netCashUsedProvidedByFinancingActivities']
 
-        cash_flow_info = {
-            "operatingCashFlow": "${:,.2f}".format(operating_cash_flow),
-            "investmentCashFlow": "${:,.2f}".format(investment_cash_flow),
-            "financialCashFlow": "${:,.2f}".format(financial_cash_flow)
-        }
-        return cash_flow_info
+        if len(cash_flow_list) != 0 :
+            operating_cash_flow = cash_flow_list[0]['operatingCashFlow']
+            investment_cash_flow = cash_flow_list[0]['netCashUsedForInvestingActivites']
+            financial_cash_flow = cash_flow_list[0]['netCashUsedProvidedByFinancingActivities']
+
+            cash_flow_info = {
+                "operatingCashFlow": "${:,.2f}".format(operating_cash_flow),
+                "investmentCashFlow": "${:,.2f}".format(investment_cash_flow),
+                "financialCashFlow": "${:,.2f}".format(financial_cash_flow)
+            }
+            return cash_flow_info
     else:
         return -1
 
