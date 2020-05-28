@@ -41,11 +41,11 @@ def get_info():
             symbol = symbol.upper()
             value_dict = {
                           'ticker': symbol,
-                          'price': get_curr_price(symbol),
-                          'dividendInfo': get_dividend_info(symbol)[0],
-                          'companyName': get_dividend_info(symbol)[1]['companyName'],
-                          'peRatio': get_dividend_info(symbol)[1]['peRatio'],
-                          'earningsPerShare': get_dividend_info(symbol)[1]['earningsPerShare'],
+                          'price': get_general_info(symbol)['price'],
+                          'companyName': get_general_info(symbol)['companyName'],
+                          'peRatio': get_general_info(symbol)['peRatio'],
+                          'earningsPerShare': get_general_info(symbol)['earningsPerShare'],
+                          'dividendInfo': get_dividend_info(symbol),
                           'balanceSheetInfo': get_balance_sheet_info(symbol),
                           'incomeSheetInfo': get_income_sheet_info(symbol),
                           'cashFlowInfo': get_cash_flow_info(symbol)
@@ -72,25 +72,24 @@ def get_dividend_info(symbol):
             'payoutRatio': 'NA' if('payoutRatio' not in ticker_dict or ticker_dict['payoutRatio'] is None)
                 else "{:.2%}".format(ticker_dict['payoutRatio'])
         }
-        general_info = {
-            'companyName': 'NA' if('shortName' not in ticker_dict or ticker_dict['shortName'] is None)
-                else ticker_dict['shortName'],
-            'peRatio': 'NA' if('trailingPE' not in ticker_dict or ticker_dict['trailingPE'] is None)
-                else "{:.2f}".format(ticker_dict['trailingPE']),
-            'earningsPerShare': 'NA' if('trailingEps' not in ticker_dict or ticker_dict['trailingEps'] is None)
-                else "{:.2f}".format(ticker_dict['trailingEps'])
-        }
 
-        return [dividend_info, general_info]
+        return dividend_info
     else:
         return -1
 
 
-def get_curr_price(symbol):
+def get_general_info(symbol):
     if symbol_check(symbol):
-        api_resp_dict = requests.get(
-            'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=' + symbol + '&apikey=6RMZ8WSEVBLUP511').json()
-        return "{:0,.2f}".format(float(api_resp_dict['Global Quote']['05. price']))
+        general_info_list = requests.get('https://financialmodelingprep.com/api/v3/quote/'+ symbol +'?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
+        general_info = {
+            'companyName': general_info_list[0]['name'],
+            'peRatio': 'NA' if ('pe' not in general_info_list[0] or general_info_list[0]['pe'] is None)
+            else "{:.2f}".format(general_info_list[0]['pe']),
+            'price': general_info_list[0]['price'],
+            'earningsPerShare': general_info_list[0]['eps']
+
+        }
+        return general_info
     else:
         return -1
 
