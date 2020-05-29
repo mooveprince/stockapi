@@ -1,0 +1,36 @@
+# serverless.yml
+service: stockapi
+
+plugins:
+  - serverless-python-requirements
+  - serverless-wsgi
+
+custom:
+  wsgi:
+    app: app.app
+    packRequirements: false
+  pythonRequirements:
+    dockerizePip: non-linux
+
+# pick our language and provider, this is automatically filled in by the template
+provider:
+  name: aws
+  runtime: python3.8
+
+package:
+  include:
+    - common/**
+    - app.py
+  exclude:
+    - venv/**
+    - requirements.txt
+    - serverless.yml
+    - README.md
+    - LICENSE.txt
+
+functions:
+  app:
+    handler: wsgi_handler.handler
+    events:
+      - http: ANY /
+      - http: 'ANY {proxy+}'
