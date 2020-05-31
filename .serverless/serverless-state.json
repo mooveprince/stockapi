@@ -160,7 +160,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/stockapi/dev/1590726740322-2020-05-29T04:32:20.322Z/stockapi.zip"
+                "S3Key": "serverless/stockapi/dev/1590829486563-2020-05-30T09:04:46.563Z/stockapi.zip"
               },
               "FunctionName": "stockapi-dev-app",
               "Handler": "wsgi_handler.handler",
@@ -179,14 +179,14 @@
               "IamRoleLambdaExecution"
             ]
           },
-          "AppLambdaVersionsuVIKkuF46GkT1gKOhlW2Lh1ki7AiGdtvaMTfwsPA4": {
+          "AppLambdaVersion3KPrBmPxa8kHTK9rsW8IFJw7BesUINQyKeckFkz8v5I": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AppLambdaFunction"
               },
-              "CodeSha256": "4GgEtYdjyUivh3irzEjgxmmVeZEwGxGjyL8Ppn27LbQ="
+              "CodeSha256": "QS4ONWzXntauMwL9ajfgMx2FTCIJRn5GPNryEJZcydw="
             }
           },
           "ApiGatewayRestApi": {
@@ -305,7 +305,7 @@
               "MethodResponses": []
             }
           },
-          "ApiGatewayDeployment1590726652813": {
+          "ApiGatewayDeployment1590829397776": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
@@ -365,7 +365,7 @@
           "AppLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AppLambdaVersionsuVIKkuF46GkT1gKOhlW2Lh1ki7AiGdtvaMTfwsPA4"
+              "Ref": "AppLambdaVersion3KPrBmPxa8kHTK9rsW8IFJw7BesUINQyKeckFkz8v5I"
             }
           },
           "ServiceEndpoint": {
@@ -493,7 +493,7 @@
         "timeout": 6,
         "runtime": "python3.8",
         "vpc": {},
-        "versionLogicalId": "AppLambdaVersionsuVIKkuF46GkT1gKOhlW2Lh1ki7AiGdtvaMTfwsPA4"
+        "versionLogicalId": "AppLambdaVersion3KPrBmPxa8kHTK9rsW8IFJw7BesUINQyKeckFkz8v5I"
       }
     },
     "serviceFilename": "serverless.yml",
@@ -501,7 +501,7 @@
     "artifact": "/Volumes/Developer/PyCharmProjects/stockapi/.serverless/stockapi.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/stockapi/dev/1590726740322-2020-05-29T04:32:20.322Z",
+    "artifactDirectoryName": "serverless/stockapi/dev/1590829486563-2020-05-30T09:04:46.563Z",
     "artifact": "stockapi.zip"
   }
 }

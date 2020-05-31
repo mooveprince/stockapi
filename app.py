@@ -1,15 +1,26 @@
 from flask import Flask, request, jsonify
 import yfinance as yf
 import requests
+import configparser
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
+
+FINANCE_MODEL_URL = 'https://financialmodelingprep.com/api/v3'
+
+config = configparser.RawConfigParser()
+config.read('config.properties')
+details_dict = dict(config.items('ENV_VARIABLE'))
+API_KEY = '?apikey='+details_dict['api_key']
+API_CALL = details_dict['api_call']
+
+print(API_KEY)
+print(API_CALL)
 
 error = {
     "errorCode": -1,
     "errorDesc": ""
 }
-
 
 @app.route('/')
 def index():
@@ -56,50 +67,54 @@ def get_info():
     else:
         return error_message(100, 'Symbol cannot be empty')
 
+def get_general_info(symbol):
+    general_info = {
+        'companyName': 'NA',
+        'peRatio': 'NA',
+        'price': 'NA',
+        'earningsPerShare': 'NA'
+    }
+    if symbol_check(symbol) and API_CALL:
+        general_info_list = requests.get(FINANCE_MODEL_URL+'/quote/'+symbol+API_KEY).json()
+        if general_info_list.get('Error Message') is None:
+            general_info['companyName'] = general_info_list[0]['name']
+            general_info['peRatio'] = 'NA' if ('pe' not in general_info_list[0] or general_info_list[0]['pe'] is None) else "{:.2f}".format(general_info_list[0]['pe'])
+            general_info['price'] = general_info_list[0]['price'],
+            general_info['earningsPerShare'] = general_info_list[0]['eps']
+    return general_info
+
 
 def get_dividend_info(symbol):
+    dividend_info = {
+        'dividend': 'NA',
+        'divYield': 'NA',
+        'fiveYearAvgDivYield': 'NA',
+        'payoutRatio': 'NA'
+    }
     if symbol_check(symbol):
         ticker = yf.Ticker(symbol)
         print(type(ticker.actions))
         ticker_dict = ticker.info
-        dividend_info = {
-            'dividend': 'NA' if('dividendRate' not in ticker_dict or ticker_dict['dividendRate'] is None)
-                else ticker_dict['dividendRate'],
-            'divYield': 'NA' if('dividendYield'not in ticker_dict or ticker_dict['dividendYield'] is None)
-                else "{:.2%}".format(ticker_dict['dividendYield']),
-            'fiveYearAvgDivYield': 'NA' if('fiveYearAvgDividendYield' not in ticker_dict or ticker_dict['fiveYearAvgDividendYield'] is None)
-                else str(ticker_dict['fiveYearAvgDividendYield']) + '%',
-            'payoutRatio': 'NA' if('payoutRatio' not in ticker_dict or ticker_dict['payoutRatio'] is None)
-                else "{:.2%}".format(ticker_dict['payoutRatio'])
-        }
+        dividend_info['dividend'] = 'NA' if('dividendRate' not in ticker_dict or ticker_dict['dividendRate'] is None) else ticker_dict['dividendRate']
+        dividend_info['divYield'] = 'NA' if('dividendYield'not in ticker_dict or ticker_dict['dividendYield'] is None) else "{:.2%}".format(ticker_dict['dividendYield'])
+        dividend_info['fiveYearAvgDivYield'] = 'NA' if('fiveYearAvgDividendYield' not in ticker_dict or ticker_dict['fiveYearAvgDividendYield'] is None) else str(ticker_dict['fiveYearAvgDividendYield']) + '%'
+        dividend_info['payoutRatio'] = 'NA' if('payoutRatio' not in ticker_dict or ticker_dict['payoutRatio'] is None) else "{:.2%}".format(ticker_dict['payoutRatio'])
 
-        return dividend_info
-    else:
-        return -1
+    return dividend_info
 
-
-def get_general_info(symbol):
-    if symbol_check(symbol):
-        general_info_list = requests.get('https://financialmodelingprep.com/api/v3/quote/'+ symbol +'?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
-        general_info = {
-            'companyName': general_info_list[0]['name'],
-            'peRatio': 'NA' if ('pe' not in general_info_list[0] or general_info_list[0]['pe'] is None)
-            else "{:.2f}".format(general_info_list[0]['pe']),
-            'price': general_info_list[0]['price'],
-            'earningsPerShare': general_info_list[0]['eps']
-
-        }
-        return general_info
-    else:
-        return -1
 
 
 def get_balance_sheet_info(symbol):
-    if symbol_check(symbol):
-        balance_sheet_list = requests.get(
-            'https://financialmodelingprep.com/api/v3/balance-sheet-statement/' + symbol + '?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
+    balance_sheet_info = {
+        "currentAssetToLiabRatio": 'NA',
+        "totalAssetToLiabRatio": 'NA',
+        "past10YearAvgAssetToLiabRatio": 'NA'
+    }
 
-        if len(balance_sheet_list) != 0:
+    if symbol_check(symbol) and API_CALL:
+        balance_sheet_list = requests.get(FINANCE_MODEL_URL+'/balance-sheet-statement/'+symbol+API_KEY).json()
+
+        if balance_sheet_list.get('Error Message') is None and len(balance_sheet_list) != 0:
             current_asset_to_liab_ratio = balance_sheet_list[0]['totalCurrentAssets'] / balance_sheet_list[0]['totalCurrentLiabilities']
             total_asset_to_liab_ratio = balance_sheet_list[0]['totalAssets'] / balance_sheet_list[0]['totalLiabilities']
 
@@ -109,22 +124,26 @@ def get_balance_sheet_info(symbol):
                 sum_total_asset_to_liab_history += bs['totalAssets']/bs['totalLiabilities']
 
             avg_total_asset_to_liab = sum_total_asset_to_liab_history / 10
-            balance_sheet_info = {
-                "currentAssetToLiabRatio": "{:.2f}".format(current_asset_to_liab_ratio),
-                "totalAssetToLiabRatio": "{:.2f}".format(total_asset_to_liab_ratio),
-                "past10YearAvgAssetToLiabRatio": "{:.2f}".format(avg_total_asset_to_liab)
-            }
-            return balance_sheet_info
-    else:
-        return -1
+            balance_sheet_info["currentAssetToLiabRatio"]= "{:.2f}".format(current_asset_to_liab_ratio),
+            balance_sheet_info["totalAssetToLiabRatio"]= "{:.2f}".format(total_asset_to_liab_ratio),
+            balance_sheet_info["past10YearAvgAssetToLiabRatio"]= "{:.2f}".format(avg_total_asset_to_liab)
+
+    return balance_sheet_info
 
 
-def get_income_sheet_info(symbol):
-    if symbol_check(symbol):
-        income_sheet_list = requests.get(
-            'https://financialmodelingprep.com/api/v3/income-statement/' + symbol + '?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
+def get_income_sheet_info(symbol) :
+    income_sheet_info = {
+        "operatingIncomeRatio": "NA",
+        "past10YAvgOperatingIncomeRatio": "NA",
+        "operatingIncomeGrowth": "NA",
+        "fiveYOperatingIncomeGrowth": "NA",
+        "tenYOperatingIncomeGrowth": "NA"
+    }
 
-        if len(income_sheet_list) != 0:
+    if symbol_check(symbol) and API_CALL:
+        income_sheet_list = requests.get(FINANCE_MODEL_URL+'/income-statement/'+symbol+API_KEY).json()
+
+        if income_sheet_list.get('Error Message') is None and len(income_sheet_list) != 0:
             operating_income_ratio = income_sheet_list[0]['operatingIncomeRatio']
 
             sum_operating_income_ratio_history = 0
@@ -143,36 +162,37 @@ def get_income_sheet_info(symbol):
             five_y_growth = (current_operating_income - past_fifth_year_operating_income)/past_fifth_year_operating_income
             ten_y_growth = (current_operating_income - past_tenth_year_operating_income)/past_tenth_year_operating_income
 
-            income_sheet_info = {
-                "operatingIncomeRatio": "{:.2%}".format(operating_income_ratio),
-                "past10YAvgOperatingIncomeRatio": "{:.2%}".format(avg_operating_income_ratio),
-                "operatingIncomeGrowth":"{:.2%}".format(one_y_growth),
-                "fiveYOperatingIncomeGrowth": "{:.2%}".format(five_y_growth),
-                "tenYOperatingIncomeGrowth": "{:.2%}".format(ten_y_growth)
-            }
-            return income_sheet_info
-    else:
-        return -1
+            income_sheet_info["operatingIncomeRatio"] = "{:.2%}".format(operating_income_ratio)
+            income_sheet_info["past10YAvgOperatingIncomeRatio"] = "{:.2%}".format(avg_operating_income_ratio)
+            income_sheet_info["operatingIncomeGrowth"] = "{:.2%}".format(one_y_growth)
+            income_sheet_info["fiveYOperatingIncomeGrowth"] = "{:.2%}".format(five_y_growth)
+            income_sheet_info["tenYOperatingIncomeGrowth"] = "{:.2%}".format(ten_y_growth)
+
+    income_sheet_info
+
 
 
 def get_cash_flow_info(symbol):
-    if symbol_check(symbol):
-        cash_flow_list = requests.get(
-            'https://financialmodelingprep.com/api/v3/cash-flow-statement/' + symbol + '?apikey=0ee048fea75d0f7205b64b8bb6723608').json()
+    cash_flow_info = {
+        "operatingCashFlow": "NA",
+        "investmentCashFlow": "NA",
+        "financialCashFlow": "NA"
+    }
 
-        if len(cash_flow_list) != 0 :
+    if symbol_check(symbol) and API_CALL:
+        cash_flow_list = requests.get(FINANCE_MODEL_URL+'/cash-flow-statement/'+symbol+API_KEY).json()
+
+        if cash_flow_list.get('Error Message') is None and len(cash_flow_list) != 0:
             operating_cash_flow = cash_flow_list[0]['operatingCashFlow']
             investment_cash_flow = cash_flow_list[0]['netCashUsedForInvestingActivites']
             financial_cash_flow = cash_flow_list[0]['netCashUsedProvidedByFinancingActivities']
 
-            cash_flow_info = {
-                "operatingCashFlow": "${:,.2f}".format(operating_cash_flow),
-                "investmentCashFlow": "${:,.2f}".format(investment_cash_flow),
-                "financialCashFlow": "${:,.2f}".format(financial_cash_flow)
-            }
-            return cash_flow_info
-    else:
-        return -1
+            cash_flow_info["operatingCashFlow"] = "${:,.2f}".format(operating_cash_flow)
+            cash_flow_info["investmentCashFlow"] = "${:,.2f}".format(investment_cash_flow)
+            cash_flow_info["financialCashFlow"] = "${:,.2f}".format(financial_cash_flow)
+
+    return cash_flow_info
+
 
 
 def symbol_check(symbol):
@@ -186,4 +206,4 @@ def error_message(code, desc):
     return error
 
 
-#app.run()
+app.run()
