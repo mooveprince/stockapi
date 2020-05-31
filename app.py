@@ -168,7 +168,7 @@ def get_income_sheet_info(symbol) :
             income_sheet_info["fiveYOperatingIncomeGrowth"] = "{:.2%}".format(five_y_growth)
             income_sheet_info["tenYOperatingIncomeGrowth"] = "{:.2%}".format(ten_y_growth)
 
-    income_sheet_info
+    return income_sheet_info
 
 
 
@@ -206,4 +206,4 @@ def error_message(code, desc):
     return error
 
 
-app.run()
+#app.run()
